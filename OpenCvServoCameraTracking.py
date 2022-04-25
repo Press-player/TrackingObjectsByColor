@@ -13,6 +13,7 @@ tilt = 45
 XYservos = ServoKit(channels = 16)
 XYservos.servo[0].angle =  pan
 moveEnable = 0
+decreaseSpeed = 1.0
 
 camSet='nvarguscamerasrc !  video/x-raw(memory:NVMM), width=3264, height=2464, format=NV12, framerate=21/1 ! nvvidconv flip-method='+str(flip)+' ! video/x-raw, width='+str(dispW)+', height='+str(dispH)+', format=BGRx ! videoconvert ! video/x-raw, format=BGR ! appsink'
 cam =cv2.VideoCapture(camSet)
@@ -33,7 +34,7 @@ blank = np.zeros([240,360,1],np.uint8)
 cv2.createTrackbar('sBlue','Trackbars',0,20,nothing)
 cv2.createTrackbar('sGreen','Trackbars',0,20,nothing)
 cv2.createTrackbar('sRed','Trackbars',0,20,nothing)
-cv2.createTrackbar('thresholdDet','Trackbars',0,30,nothing)
+cv2.createTrackbar('servoSpeed','Trackbars',1,30,nothing)
 
 while True:
     ret,frame =cam.read()
@@ -56,7 +57,7 @@ while True:
     merge =cv2.merge((b,g,r))
     hsv =cv2.cvtColor(merge,cv2.COLOR_BGR2HSV)
 
-    thresholdDet =cv2.getTrackbarPos('thresholdDet','Trackbars')
+    servoSpeed =cv2.getTrackbarPos('servoSpeed','Trackbars')
 
     #print(hsv)
     hueLow1 =cv2.getTrackbarPos('hueLower1','Trackbars')
@@ -110,10 +111,21 @@ while True:
             #cv2.drawContours(frame,[cnt],0,(0,255,0),3)
             cv2.line(merge,(0,objY),(500,objY),(0,255,0),4) 
             if moveEnable == 1:
-                if abs(errorPan)>30:
-                    pan = pan - errorPan/thresholdDet
-                if abs(errorTilt)>30:
-                    tilt = tilt - errorTilt/thresholdDet
+                if abs(errorPan)>40:
+                    servoSpeedModular = servoSpeed+decreaseSpeed
+                    pan = pan - int(errorPan/servoSpeedModular)
+                    decreaseSpeed = decreaseSpeed + 0.5
+                    print ( 'error', errorPan)
+                    print ( 'ServoSpeed', servoSpeed)
+                    print('decreaseSpeed', decreaseSpeed)
+                    print('servoSpeedModular', servoSpeedModular)
+                    print ('pan =', pan)
+
+                if abs(errorPan)<40:
+                    print('error fixed', errorPan)
+                    decreaseSpeed = 1
+                if abs(errorTilt)>40:
+                    tilt = tilt - errorTilt/servoSpeed
                 if pan > 180:
                     pan = 180
                     print ('Pan Out of Range')
@@ -122,10 +134,10 @@ while True:
                     print ('Pan Out of Range')
                 if tilt > 180:
                     tilt = 180
-                    print ('Tilt Out of Range')
+                    #print ('Tilt Out of Range')
                 if tilt < 0:
                     tilt = 0
-                    print ('Tilt Out of Range') 
+                    #print ('Tilt Out of Range') 
                 XYservos.servo[0].angle = pan
                 #XYservo[1].angle = tilt
             break                 
